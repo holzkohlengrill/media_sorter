@@ -19,7 +19,7 @@ A Python command-line tool that automatically sorts photos, videos, and GIFs int
 
 ## Usage
 ### Command Help
-```
+```bash
 usage: media_sort.py [-h] [-o OUTPUT] [--dry-run] [--move] [--media-only] [--exclude-hidden] [--resume]
                      [--status-file STATUS_FILE]
                      sources [sources ...]
@@ -108,7 +108,7 @@ python media_sort.py ~/Pictures --resume
 
 ## Test Data Structure
 The `test/` directory contains sample files for testing the tool:
-```
+```text
 test/
 ├── source1/
 │   ├── photos/
@@ -157,7 +157,7 @@ python ../media_sort.py source1 source2 -o output
 
 ### Expected Output Structure
 After running the tool on the test data, the output directory would be organized like this:
-```
+```text
 output/
 ├── 2023/
 │   ├── photos/

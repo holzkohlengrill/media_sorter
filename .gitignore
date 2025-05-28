@@ -1,0 +1,23 @@
+# Shell scripts
+*.sh
+
+# Status files
+.media_sort_status.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test output directory
+test/output/

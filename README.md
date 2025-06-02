@@ -114,8 +114,6 @@ The `test/` directory contains sample files for testing the tool:
 test/
 ├── .DS_Store                           # macOS system file (always skipped)
 ├── source1/
-│   ├── .git/                           # System directory (always skipped)
-│   │   └── config                      # Git config file
 │   ├── .hidden/                        # Hidden directory with files
 │   │   ├── .secret_photo.jpg           # Hidden file
 │   │   └── PXL_20240101_120000000.jpg  # Hidden Google Pixel photo

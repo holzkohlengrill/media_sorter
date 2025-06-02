@@ -21,3 +21,7 @@ Thumbs.db
 
 # Test output directory
 test/output/
+test_sorted/
+
+# Exclude data directory
+data/

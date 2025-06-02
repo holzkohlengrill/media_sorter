@@ -39,9 +39,9 @@ import time
 import platform
 
 
-NEW_YEAR_CUTOFF_HOUR = 14  # Files created on Jan 1st before 14:00 belong to previous year
-MIN_VALID_YEAR = 1970  # Unix epoch start
-MAX_VALID_YEAR = 3000  # Future-proof upper limit
+NEW_YEAR_CUTOFF_HOUR = 14                  # Files created on Jan 1st before 14:00 belong to previous year
+MIN_VALID_YEAR = 1970                      # Unix epoch start
+MAX_VALID_YEAR = 3000                      # Upper limit for validating year
 MIN_VALID_MONTH = 1
 MAX_VALID_MONTH = 12
 MIN_VALID_DAY = 1
@@ -61,13 +61,20 @@ MEDIA_EXTENSIONS = {
     '.gif', '.webp'
 }
 
-# Directories to skip when exclude-hidden is used
+# Files and directories to skip always regardless of settings
 SKIP_DIRECTORIES = {
-    '.git', '.svn', '.hg',  # Version control
-    '.DS_Store', '__MACOSX',  # macOS
-    '.Trash', '.Trashes',  # Trash folders
-    'node_modules', '__pycache__',  # Dependencies/cache
-    '.cache', '.tmp', '.temp'  # Temporary files
+    '.git', '.svn', '.hg',                  # Version control
+    '__MACOSX',                             # macOS
+    '.Trash', '.Trashes',                   # Trash folders
+    '__pycache__',                          # Dependencies/cache
+    '.cache', '.tmp', '.temp'               # Temporary files
+}
+SKIP_FILES = {
+    '.DS_Store',                            # macOS directory metadata
+    'Thumbs.db',                            # Windows thumbnails
+    'desktop.ini',                          # Windows folder settings
+    '.gitignore',                           # Git ignore file
+    '.gitkeep',                             # Git placeholder
 }
 
 
@@ -104,7 +111,7 @@ class DatePatternMatcher:
     
     def __init__(self):
         self.patterns = [
-            # Most common pattern - PXL files (Google Pixel)
+            # PXL files (Google Pixel)
             DatePattern(
                 name="PXL_YYYYMMDD_HHMMSS",
                 regex=r'PXL_(\d{4})(\d{2})(\d{2})_\d{6}',
@@ -158,7 +165,7 @@ class DatePatternMatcher:
                 extractor=lambda m: (int(m.group(1)), int(m.group(2)), int(m.group(3)))
             ),
         ]
-    
+
     def extract_date(self, filename: str) -> Optional[Tuple[int, int, int]]:
         """Extract date from filename using all patterns"""
         for pattern in self.patterns:
@@ -301,19 +308,15 @@ class ColorPrinter:
             print(message)
     
     def error(self, message: str):
-        """Print error message"""
         self.print(f"ERROR: {message}", 'red')
     
     def warning(self, message: str):
-        """Print warning message"""
         self.print(f"WARNING: {message}", 'yellow')
     
     def success(self, message: str):
-        """Print success message"""
         self.print(f"SUCCESS: {message}", 'green')
     
     def info(self, message: str):
-        """Print info message"""
         self.print(f"INFO: {message}", 'cyan')
 
 
@@ -432,11 +435,11 @@ class FileOperations:
         stat_info = file_path.stat()
         
         # Platform-specific creation time
-        if platform.system() == 'Darwin':  # macOS
+        if platform.system() == 'Darwin':          # macOS
             creation_time = datetime.fromtimestamp(stat_info.st_birthtime)
         elif platform.system() == 'Windows':
             creation_time = datetime.fromtimestamp(stat_info.st_ctime)
-        else:  # Linux and others
+        else:                                       # Linux and others
             # Use the earlier of ctime and mtime
             creation_time = datetime.fromtimestamp(min(stat_info.st_ctime, stat_info.st_mtime))
         
@@ -447,7 +450,7 @@ class FileOperations:
 class ConflictResolver:
     """Handles conflict resolution"""
     
-    # Lookup table for overwrite decisions
+    # LUT for overwrite decisions
     OVERWRITE_DECISIONS = {
         OverwriteAction.YES: lambda conflict: True,
         OverwriteAction.NO: lambda conflict: False,
@@ -472,56 +475,43 @@ class ConflictResolver:
         
         # Display action options
         print("\nActions:")
-        for i, action in enumerate(OverwriteAction, 1):
+        for action in OverwriteAction:
             info = action.value
-            print(f"  {i}. {info.shorthand}/{info.full_name} - {info.description}")
+            print(f"  {info.shorthand}/{info.full_name} - {info.description}")
         
         # Display scope options
         print("\nScope:")
-        for i, scope in enumerate(OverwriteScope, 1):
+        for scope in OverwriteScope:
             info = scope.value
             if info.shorthand:
-                print(f"  {i + len(OverwriteAction)}. {info.shorthand}/{info.full_name} - {info.description}")
+                print(f"  {info.shorthand}/{info.full_name} - {info.description}")
             else:
                 print(f"  (default) - {info.description}")
         
+        print("\nExamples: 'y:all', 'larger:f', 'n' (action only)")
+        
         # Get user input
         while True:
-            choice = input("\nEnter action [scope]: ").strip().lower()
+            choice = input("\nEnter action:scope (or just action for current file only): ").strip().lower()
             
-            # Parse input
-            parts = choice.split()
-            if not parts:
+            # Parse input - split on colon
+            parts = choice.split(':', 1)  # Split on first colon only
+            action_input = parts[0].strip()
+            scope_input = parts[1].strip() if len(parts) > 1 else ""
+            
+            if not action_input:
                 continue
             
             # Get action
-            action = OverwriteAction.from_input(parts[0])
-            if not action:
-                # Try by number
-                try:
-                    action_num = int(parts[0])
-                    if 1 <= action_num <= len(OverwriteAction):
-                        action = list(OverwriteAction)[action_num - 1]
-                except:
-                    pass
-            
+            action = OverwriteAction.from_input(action_input)
             if not action:
                 print("Invalid action. Please try again.")
                 continue
             
             # Get scope
             scope = OverwriteScope.CURRENT
-            if len(parts) > 1:
-                scope = OverwriteScope.from_input(parts[1])
-                if not scope:
-                    # Try by number
-                    try:
-                        scope_num = int(parts[1])
-                        if 1 <= scope_num <= len(OverwriteScope):
-                            scope = list(OverwriteScope)[scope_num - 1]
-                    except:
-                        pass
-                
+            if scope_input:
+                scope = OverwriteScope.from_input(scope_input)
                 if not scope:
                     print("Invalid scope. Please try again.")
                     continue
@@ -573,12 +563,18 @@ class MediaSorter:
     
     def _should_skip_path(self, path: Path) -> bool:
         """Check if a path should be skipped based on hidden files/directories settings"""
+        if path.name in SKIP_FILES:
+            return True
+        
+        # Always skip certain directories (check all parts of the path)
+        for part in path.parts:
+            if part in SKIP_DIRECTORIES:
+                return True
+            
         if self.exclude_hidden:
             # Check all parts of the path for hidden directories
             for part in path.parts:
                 if part.startswith('.') and part != '.':
-                    return True
-                if part in SKIP_DIRECTORIES:
                     return True
         return False
     
@@ -642,10 +638,14 @@ class MediaSorter:
                 if not file_path.is_file():
                     continue
                 
-                # Skip hidden files/directories if requested
                 if self._should_skip_path(file_path):
                     if self.verbose:
-                        self.printer.info(f"Skipping hidden/excluded path: {get_relative_path(file_path)}")
+                        if file_path.name in SKIP_FILES:
+                            self.printer.info(f"Skipping system file: {get_relative_path(file_path)}")
+                        elif any(part in SKIP_DIRECTORIES for part in file_path.parts):
+                            self.printer.info(f"Skipping system directory: {get_relative_path(file_path)}")
+                        else:
+                            self.printer.info(f"Skipping hidden path: {get_relative_path(file_path)}")
                     continue
                 
                 # Skip if already processed
@@ -655,7 +655,6 @@ class MediaSorter:
                 if self.status_tracker.is_processed(str(file_path), str(target_path)):
                     continue
                 
-                # Check if media only mode
                 if self.media_only and file_path.suffix.lower() not in MEDIA_EXTENSIONS:
                     if self.verbose:
                         self.printer.info(f"Skipping non-media file: {get_relative_path(file_path)}")

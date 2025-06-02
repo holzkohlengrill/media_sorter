@@ -101,16 +101,24 @@ python media_sort.py ~/Pictures --resume
 * **Images**: jpg, jpeg, png, gif, bmp, tiff, tif, webp, heic, heif, raw, cr2, nef, arw, dng, svg
 * **Videos**: mp4, avi, mov, wmv, flv, mkv, webm, m4v, mpg, mpeg, 3gp, 3g2, mts, m2ts, vob, ogv
 
-### Hidden Files
+### Hidden Files and Directories
 * By default, hidden files and directories (starting with `.`) are included
-* Use `--exclude-hidden` to skip them
-* Always skipped with `--exclude-hidden`: `.git`, `.svn`, `.DS_Store`, `.Trash`, `node_modules`, `__pycache__`
+* Use `--exclude-hidden` to skip all hidden files and directories
+* Certain system files and directories are always skipped regardless of settings:
+  * **Files**: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `.gitignore`, `.gitkeep`
+  * **Directories**: `.git`, `.svn`, `.hg`, `__MACOSX`, `.Trash`, `.Trashes`, `__pycache__`, `.cache`, `.tmp`, `.temp`
 
 ## Test Data Structure
 The `test/` directory contains sample files for testing the tool:
 ```text
 test/
+├── .DS_Store                           # macOS system file (always skipped)
 ├── source1/
+│   ├── .git/                           # System directory (always skipped)
+│   │   └── config                      # Git config file
+│   ├── .hidden/                        # Hidden directory with files
+│   │   ├── .secret_photo.jpg           # Hidden file
+│   │   └── PXL_20240101_120000000.jpg  # Hidden Google Pixel photo
 │   ├── photos/
 │   │   ├── PXL_*.jpg                   # Google Pixel photos with dates
 │   │   │   ├── PXL_20240101_120000.jpg # Jan 1st after 14:00 (stays in 2024)
@@ -121,25 +129,23 @@ test/
 │   │   ├── YYYY-MM-DD_*.jpg            # Generic date patterns
 │   │   ├── YYYYMMDD.jpg                # Simple date pattern (e.g., 20240815.jpg)
 │   │   ├── vacation_photo.jpg          # No date in filename (uses creation date)
-│   │   ├── "family photo (2024).jpg"   # Spaces and parentheses in filename
-│   │   ├── photo@event.jpg             # Special characters (@, #, &)
+│   │   ├── "family & friends 2024-08-15.jpg" # Special characters (&) in filename
 │   │   └── 2024/summer/                # Nested directory structure
-│   │       └── beach_sunset.jpg        # Preserves source directory structure
+│   │       └── PXL_20240701_*.jpg      # Preserves source directory structure
 │   ├── videos/
 │   │   ├── PXL_*.mp4                   # Google Pixel videos
 │   │   ├── VID_*.mp4                   # Standard video files
-│   │   └── random_video.mp4            # No date pattern (uses creation date)
-│   ├── .hidden/                        # Hidden directory with files
-│   │   ├── .secret_photo.jpg           # Hidden file
-│   │   └── .config/                    # Nested hidden directory
-│   │       └── settings.json           # Non-media in hidden directory
+│   │   └── family_video.mp4            # No date pattern (uses creation date)
 │   └── document.pdf                    # Non-media file (filtered with --media-only)
 └── source2/
+    ├── PXL_20240815_120000000.jpg      # Duplicate filename from source1 (conflict test)
+    ├── some_notes.txt                  # Non-media file
     ├── screenshots/
-    │   ├── Screenshot_*.png            # Screenshot files
-    │   └── Screenshot_*_duplicate.png  # Same name from different sources (conflict test)
+    │   ├── Screenshot_20231231-*.png   # Screenshot files
+    │   └── Screenshot_20240615-*.png   # Screenshots from different dates
     └── whatsapp/
-        └── IMG-*-WA*.jpg               # WhatsApp media files
+        ├── IMG-*-WA*.jpg               # WhatsApp image files
+        └── VID-*-WA*.mp4               # WhatsApp video files
 ```
 
 ### Run

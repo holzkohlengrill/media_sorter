@@ -21,7 +21,7 @@ A Python command-line tool that automatically sorts photos, videos, and GIFs int
 ### Command Help
 ```bash
 usage: media_sort.py [-h] [-o OUTPUT] [--dry-run] [--move] [--media-only] [--exclude-hidden] [--resume]
-                     [--status-file STATUS_FILE]
+                     [--verbose] [--status-file STATUS_FILE]
                      sources [sources ...]
 
 Sort media files into year-based folders
@@ -38,6 +38,7 @@ options:
   --media-only          Only process media files (photos, videos, gifs)
   --exclude-hidden      Exclude hidden files and directories (included by default)
   --resume              Resume from previous interrupted operation
+  --verbose, -v         Show verbose output including successful operations
   --status-file STATUS_FILE
                         Status file for resume capability (default: .media_sort_status.json)
 
@@ -48,7 +49,10 @@ Examples:
   media_sort.py /path/to/source --move --media-only
   media_sort.py /path/to/source --exclude-hidden  # Exclude hidden files/directories
   media_sort.py /path/to/source --resume  # Resume interrupted operation
+  media_sort.py /path/to/source -v  # Show verbose output
 ```
+
+**Note:** By default, the tool runs in quiet mode, showing only warnings, errors, and prompts. Use `--verbose`/`-v` to see all operations including successful file copies/moves and skipped files.
 
 ### Basic Usage
 ```bash
@@ -157,6 +161,9 @@ python ../media_sort.py source1 --media-only --dry-run
 
 # Do the actual run
 python ../media_sort.py source1 source2 -o output
+
+# Run with verbose output to see all operations
+python ../media_sort.py source1 source2 -o output --verbose
 ```
 
 ### Expected Output Structure

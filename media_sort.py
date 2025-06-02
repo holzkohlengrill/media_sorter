@@ -71,6 +71,15 @@ SKIP_DIRECTORIES = {
 }
 
 
+def get_relative_path(path: Path) -> str:
+    """Convert a path to relative path from current working directory."""
+    try:
+        return str(path.relative_to(Path.cwd()))
+    except ValueError:
+        # Path is not relative to current directory, return as-is
+        return str(path)
+
+
 class DatePattern:
     """Represents a date extraction pattern"""
     
@@ -251,8 +260,8 @@ class ConflictInfo:
     
     def format_summary(self) -> str:
         """Format conflict as a single line summary"""
-        return (f"{self.source.path} ({self.source.size}B, {self.source.creation_date:%Y-%m-%d %H:%M}) -> "
-                f"{self.target.path} ({self.target.size}B, {self.target.creation_date:%Y-%m-%d %H:%M}) "
+        return (f"{get_relative_path(self.source.path)} ({self.source.size}B, {self.source.creation_date:%Y-%m-%d %H:%M}) -> "
+                f"{get_relative_path(self.target.path)} ({self.target.size}B, {self.target.creation_date:%Y-%m-%d %H:%M}) "
                 f"[Size: {'=' if self.same_size else '≠'}, Date: {'=' if self.same_creation_date else '≠'}]")
 
 
@@ -537,11 +546,13 @@ class MediaSorter:
     
     def __init__(self, dry_run: bool = False, move_files: bool = False, 
                  media_only: bool = False, exclude_hidden: bool = False,
+                 verbose: bool = False,
                  printer: ColorPrinter = None, status_file: Path = None):
         self.dry_run = dry_run
         self.move_files = move_files
         self.media_only = media_only
         self.exclude_hidden = exclude_hidden
+        self.verbose = verbose
         self.printer = printer or ColorPrinter()
         self.date_matcher = DatePatternMatcher()
         self.conflict_resolver = ConflictResolver(self.printer)
@@ -603,7 +614,7 @@ class MediaSorter:
         
         # Fall back to creation date
         creation_date, _ = FileOperations.get_file_dates(file_path)
-        self.printer.warning(f"Using creation date for: {file_path}")
+        self.printer.warning(f"Using creation date ({creation_date.strftime('%Y-%m-%d %H:%M:%S')}) for: {get_relative_path(file_path)}")
         
         year = creation_date.year
         # Handle New Year's cutoff
@@ -622,7 +633,7 @@ class MediaSorter:
         operations = []
         
         for source_dir in source_dirs:
-            self.printer.info(f"Scanning {source_dir}...")
+            self.printer.info(f"Scanning {get_relative_path(source_dir)}...")
             
             for file_path in source_dir.rglob('*'):
                 if self._interrupted:
@@ -633,7 +644,8 @@ class MediaSorter:
                 
                 # Skip hidden files/directories if requested
                 if self._should_skip_path(file_path):
-                    self.printer.info(f"Skipping hidden/excluded path: {file_path}")
+                    if self.verbose:
+                        self.printer.info(f"Skipping hidden/excluded path: {get_relative_path(file_path)}")
                     continue
                 
                 # Skip if already processed
@@ -645,7 +657,8 @@ class MediaSorter:
                 
                 # Check if media only mode
                 if self.media_only and file_path.suffix.lower() not in MEDIA_EXTENSIONS:
-                    self.printer.info(f"Skipping non-media file: {file_path}")
+                    if self.verbose:
+                        self.printer.info(f"Skipping non-media file: {get_relative_path(file_path)}")
                     self.skipped_files += 1
                     continue
                 
@@ -711,7 +724,7 @@ class MediaSorter:
             # Execute operation
             if self.dry_run:
                 action_str = "Would move" if self.move_files else "Would copy"
-                self.printer.info(f"{action_str}: {source} -> {target}")
+                self.printer.info(f"{action_str}: {get_relative_path(source)} -> {get_relative_path(target)}")
             else:
                 success = FileOperations.copy_or_move_with_retry(
                     source, target, self.move_files, self.printer
@@ -719,7 +732,8 @@ class MediaSorter:
                 
                 if success:
                     action_str = "Moved" if self.move_files else "Copied"
-                    self.printer.success(f"{action_str}: {source} -> {target}")
+                    if self.verbose:
+                        self.printer.success(f"{action_str}: {get_relative_path(source)} -> {get_relative_path(target)}")
                     self.processed_files += 1
                     self.status_tracker.mark_processed(str(source), str(target))
                 else:
@@ -778,7 +792,9 @@ class MediaSorter:
         if self.status_tracker.failed:
             self.printer.error(f"Failed operations: {len(self.status_tracker.failed)}")
             for key, info in self.status_tracker.failed.items():
-                self.printer.error(f"  {info['source']} -> {info['target']}: {info['error']}")
+                source_path = Path(info['source'])
+                target_path = Path(info['target'])
+                self.printer.error(f"  {get_relative_path(source_path)} -> {get_relative_path(target_path)}: {info['error']}")
         
         if self.dry_run:
             self.printer.warning("This was a dry run - no files were actually moved/copied")
@@ -796,6 +812,7 @@ Examples:
   %(prog)s /path/to/source --move --media-only
   %(prog)s /path/to/source --exclude-hidden  # Exclude hidden files/directories
   %(prog)s /path/to/source --resume  # Resume interrupted operation
+  %(prog)s /path/to/source --verbose  # Show all file operations
 
   Media Sorter  Copyright (C) 2025  Marcel Schmalzl
 This program comes with ABSOLUTELY NO WARRANTY
@@ -816,6 +833,8 @@ This is free software, and you are welcome to redistribute it under certain cond
                         help='Exclude hidden files and directories (included by default)')
     parser.add_argument('--resume', action='store_true',
                         help='Resume from previous interrupted operation')
+    parser.add_argument('--verbose', '-v', action='store_true',
+                        help='Enable verbose output (show all file operations)')
     parser.add_argument('--status-file', type=Path,
                         help=f'Status file for resume capability (default: {STATUS_FILE_NAME})')
     
@@ -849,18 +868,20 @@ This is free software, and you are welcome to redistribute it under certain cond
         move_files=args.move,
         media_only=args.media_only,
         exclude_hidden=args.exclude_hidden,
+        verbose=args.verbose,
         printer=printer,
         status_file=args.status_file
     )
     
     # Print configuration
     printer.info("Media Sort Configuration:")
-    printer.info(f"\tSource directories: {', '.join(str(s) for s in args.sources)}")
-    printer.info(f"\tOutput directory: {output_dir}")
+    printer.info(f"\tSource directories: {', '.join(get_relative_path(s) for s in args.sources)}")
+    printer.info(f"\tOutput directory: {get_relative_path(output_dir)}")
     printer.info(f"\tMode: {'Move' if args.move else 'Copy'}")
     printer.info(f"\tMedia only: {'Yes' if args.media_only else 'No'}")
     printer.info(f"\tHidden files: {'Excluded' if args.exclude_hidden else 'Included'}")
     printer.info(f"\tDry run: {'Yes' if args.dry_run else 'No'}")
+    printer.info(f"\tVerbose: {'Yes' if args.verbose else 'No'}")
     if args.resume:
         printer.info("\tResuming from previous operation")
     print()

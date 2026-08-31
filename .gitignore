@@ -3,6 +3,7 @@
 
 # Status files
 .media_sort_status.json
+.media_sort_virtual_cache.json
 
 # Python cache
 __pycache__/
